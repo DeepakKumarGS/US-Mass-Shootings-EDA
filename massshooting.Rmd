@@ -1,0 +1,196 @@
+---
+title: "US-Mass Shootings"
+author: "Deepak Kumar G S"
+date: "October 20, 2017"
+output: 
+  html_document:
+    fig.width: 8
+    fig.height: 8
+    toc: TRUE
+    code_folding: hide
+    theme: simplex
+    highlight: textmate
+---
+```{r setup,warning=FALSE,message=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=FALSE,message=FALSE)
+```
+
+# Introduction:
+
+* The US has witnessed 398 mass shootings in last 50 years that resulted in 1996 deaths and 2488 injured. The latest and the worst mass shooting of October 2, 2017 killed 58 and injured 515 so far. The number of people injured in this attack is more than the number of people injured in all mass shootings of 2015 and 2016 combined. The average number of mass shootings per year is 7 for the last 50 years that would claim 39 lives and 48 injured per year.
+
+* The dataset contains detailed information of 398 mass shootings in the United States of America that killed 1996 and injured 2488 people.
+
+* The dataset contains Serial No, Title, Location, Date, Summary, Fatalities, Injured, Total Victims, Mental Health Issue, Race, Gender, and Lat-Long information.
+
+# Loading the dataset and libraries
+
+
+```{r,warning=FALSE,message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+library(formattable)
+library(plotly)
+library(ggrepel)
+library(tidyr)
+library(cowplot)
+library(knitr)
+library(forcats)
+shoot=read.csv("Mass Shootings Dataset.csv",header=TRUE,stringsAsFactors = FALSE)
+```
+
+Getting a glimpse and structure of the data,
+
+```{r}
+glimpse(shoot)
+themegg=function(){theme(axis.title.x = element_text(color="red",hjust=1),axis.text.x = element_text(angle=90,vjust=0.5),axis.title.y = element_text(color="red",hjust=1),plot.title=element_text(size=15,color="blue",hjust=0.5),plot.subtitle=element_text(face="italic"),legend.background = element_blank(),legend.title=element_text(color="black",face="bold"),legend.text=element_text(color="black",face="bold"))}
+```
+
+# Answering some questions to find out the pattern hidden
+
+## Which event has claimed maximum fatalities?
+
+```{r}
+length(unique(shoot$Title))
+```
+
+* There are 397 unique shooting events captured in the dataset.
+
+
+```{r,fig.height=10}
+temp=shoot %>% select(Title,Location,Fatalities) %>% arrange(desc(Fatalities)) %>% head(20) 
+q=ggplot(temp,aes(factor(Title,levels=Title),Fatalities,fill=Title))+geom_bar(stat="identity")+themegg()+labs(x="Event",y="Fatalities",title="Event and Fatalities",caption="Source:Wiki,USAToday,Web")+theme(legend.position="none")+scale_y_continuous(limits=c(0,60),breaks=seq(0,60,5))
+ggplotly(q)
+```
+
+
+
+* The Las Vegas strip mass shooting has maximum fatalities in this dataset followed by Orlando nightclub massacare.
+
+## Which event has more victims ?
+
+```{r,fig.width=7,fig.height=7}
+temp=shoot %>% select(Title,Location,Total.victims) %>% arrange(desc(Total.victims)) %>% head(20)
+ggplot(temp,aes(factor(Title,level=Title),Total.victims,fill=Title))+geom_bar(stat="identity")+theme_fivethirtyeight()+labs(x="Event",y="Total Victims",title="Maximum victims for an Event")+theme(legend.position="none",axis.text.x=element_text(angle=90,hjust=0.5))+geom_label_repel(aes(label=Total.victims,fill=factor(Location)),color="white",size=2.1)
+
+
+```
+
+* The first two incidents have both maximum fatalities and has more victims if we do a comparative analysis of the earlier chart.
+
+## Which month,year has seen more incidents ?
+
+The dataset has date column in the format MM/DD/YYYY.We split the date into month and year to find out the trend.Date is in character format.
+
+Then I have plotted the graphs individually for months and years and have tried my hands on *cowplot* package.For more info on the package check out this [link](https://cran.r-project.org/web/packages/cowplot/vignettes/plot_grid.html)
+
+```{r,fig.width=9,fig.height=8}
+shoot=separate(shoot,"Date",c("month","day","Year"),sep="/")
+shoot$month=month.abb[as.numeric(shoot$month)]
+shoot$month=factor(shoot$month,levels=month.abb)
+temp =shoot %>% select(month) %>% group_by(month) %>% summarise(count=n())
+q=ggplot(temp,aes(month,count,fill=month))+geom_bar(stat="identity")+theme_gdocs()+theme(legend.position="none")+labs(x="Month",y="Aggregate number of incidents",title="Number of Incidents by Month",caption="Source:Wiki,USA Today,Web")
+temp=shoot %>% select(Year) %>% group_by(Year) %>% summarise(count=n()) %>% arrange(desc(count))
+p=ggplot(temp,aes(Year,count,group=1))+geom_line()+theme_classic()+theme(legend.position="none",axis.text.x=element_text(angle=90,hjust=0.5))+labs(x="Year",y="Aggregate number of incidents",title="Number of Incidents by Year",caption="Source:Wiki,USA Today,Web")
+plot_grid(p,q,labels=NULL,cols=1)
+```
+
+> The number of incidents have peaked during the month of feburary,March and april.
+
+> The number of incidents seems to have peaked after 2010.
+
+> Let us see which incident has lead to the maximum spike in the number of victims.
+
+
+```{r}
+temp=shoot %>% select(Title,Location,Total.victims) %>% arrange(desc(Total.victims)) %>% head(20)
+temp=inner_join(temp,shoot,by=c("Location","Title")) 
+kable(head(temp))
+#Removing the unnecessary columns,
+temp=temp %>% select(Title,Location,Total.victims.x,month,day,Year,Fatalities,Injured)
+formattable(temp,align="l",list(Total.victims.x=color_tile("orange","red"),Fatalities=color_bar("darkgrey"),Injured=color_bar("violet")))
+```
+
+> It is observed that the Las Vegas Incident in the month of Oct,2017 has maximum victims.
+
+## By Gender,Race and Mental Health {.tabset}
+
+###  By Gender
+
+We first clean this column since M/F ,Male/Female are same but they are given as seperate entries and similarly M and Male are same.This is done with the help of *fct_collapse* from *forcats* package.
+
+
+
+```{r}
+str(shoot$Gender)
+```
+
+The data type is character which we convert it into factor and collapse factors intio similar groups for better visualisation.
+
+```{r}
+shoot$Gender=factor(shoot$Gender)
+shoot=shoot %>% mutate(Gender=fct_collapse(Gender,"Male"=c("M","Male"),"Male/Female"=c("M/F","Male/Female"),"Unknown"="Unknown","Female"="Female"))
+temp=shoot %>% group_by(Gender)%>% summarise(count=n()) %>% mutate(perc=round((count/sum(count))*100)) %>% arrange(desc(count))
+ggplot(temp[temp$Gender!="",],aes(Gender,count,fill=Gender))+geom_bar(stat="identity",na.rm=TRUE)+theme_fivethirtyeight()+theme(legend.position="none")+labs(x="Gender",y="Count",title="Perperator of the Incident")
+```
+
+
+The incidents seems to have been perperated by Male gender as evident from the chart.
+
+### By Race
+
+```{r}
+str(shoot$Race)
+```
+
+The data type is character.We convert it into factor and visualize.
+
+```{r}
+shoot$Race=factor(shoot$Race)
+temp=shoot %>% group_by(Race) %>% summarise(count=n()) %>% mutate(perc=round((count/sum(count))*100)) %>% arrange(desc(count))
+formattable(temp,align=c("l","r","r"),list(count=color_bar("red"),perc=color_tile("white","pink")))
+```
+
+
+
+Similar to gender,there is a discrepancy in the data.we try to combine the repetitive races so that a clear picture emerge.
+
+```{r,fig.width=8,.fig.height=10}
+shoot=shoot %>% mutate(Race=fct_collapse(Race,"UnknownRace"=c("Unknown","Some other race","Other","unclear"),"Two or more Race"=c("Two or more races","Asian American/Some other race","Black American or African American/Unknown","White American or European American/Some other Race"),"WhiteRace"=c("White","white"),"BlackRace"=c("black","Black"))) 
+temp=shoot %>% group_by(Race) %>% summarise(count=n()) %>% mutate(perc=round((count/sum(count))*100)) %>% arrange(desc(count))
+ggplot(head(temp[temp!="",]),aes(Race,count,fill=Race))+geom_bar(stat="identity")+theme_hc()+theme(legend.position="none",axis.text.x=element_text(angle=90,hjust=0.5))+labs(x="Race",y="Count",title="Perperator's Race",caption="Source:FBI,USA Today,Web")
+
+```
+
+> 34 % of the time,the perperator of the incident turns out to be a White American or European American descent.
+
+### Mental Health
+
+Data type:
+
+```{r}
+str(shoot$Mental.Health.Issues)
+
+```
+
+The datatype is character.Similar to last two variables we repeat the same steps for Mental Health Issues variable.
+
+```{r}
+shoot$Mental.Health.Issues=factor(shoot$Mental.Health.Issues)
+temp=shoot %>% group_by(Mental.Health.Issues) %>% summarise(count=n())
+head(temp)
+shoot = shoot %>% mutate(Mental.Health.Issues=factor(ifelse(c(shoot$Mental.Health.Issues=="Unknown"|shoot$Mental.Health.Issues=="unknown"| shoot$Mental.Health.Issues=="Unclear"),"HealthUnknown",ifelse(shoot$Mental.Health.Issues=="Yes","Yes","No"))))
+temp=shoot %>% group_by(Mental.Health.Issues) %>% summarise(count=n())
+ggplot(temp,aes(Mental.Health.Issues,count,fill=Mental.Health.Issues))+geom_bar(stat="identity")+themegg()+labs(x="Mental Health",title="Mental Stability")+theme(legend.position = "none")
+
+```
+
+> Since there is equal split in the data we are not able to conclude definitely whether the incidents were commited by people with mental issues.
+
+
+# Conclusion:
+
+> This kernal tries to answer basic questions after seeing the data like - incident time pattern,victims sufferred by incident,incident perperator's background etc.
+
+> I have used popular packages in R like dplyr,ggplot,formattable and have tried my hands on markdown tools like tabset and R packages like forcats.
