@@ -1,6 +1,6 @@
 # US-Mass-Shootings-EDA
 
-##Content
+## Content
 
 Geography: United States of America
 
