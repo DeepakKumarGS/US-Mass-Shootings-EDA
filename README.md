@@ -12,4 +12,4 @@ Dataset: The dataset contains detailed information of 398 mass shootings in the 
 
 Variables: The dataset contains Serial No, Title, Location, Date, Summary, Fatalities, Injured, Total Victims, Mental Health Issue, Race, Gender, and Lat-Long information.
 
-For complete report visit 
+For complete report visit https://deepakkumargs.github.io/US-Mass-Shootings-EDA/
